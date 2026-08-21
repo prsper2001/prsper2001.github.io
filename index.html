@@ -104,12 +104,30 @@
   .gait-card .fig-label { font-family: var(--mono); font-size: .7rem; color: var(--ink-faint); display: flex; justify-content: space-between; margin-bottom: .4rem; }
   .gait-card svg { width: 100%; height: auto; display: block; overflow: visible; }
   .gait-card .caption { font-family: var(--mono); font-size: .68rem; color: var(--ink-faint); margin-top: .5rem; text-align: right; }
-  #gaitPath {
-    stroke-dasharray: 1200; stroke-dashoffset: 1200;
-    animation: draw 2.4s ease-out .3s forwards;
+  #gaitSvg { touch-action: none; }
+  .gait-ground { stroke: var(--line); stroke-width: 1.4; stroke-dasharray: 2 5; }
+  .gait-seg { stroke: var(--ink-soft); stroke-width: 3.2; stroke-linecap: round; fill: none; }
+  .gait-seg.accent { stroke: var(--teal); }
+  .gait-far { opacity: .36; }
+  .gait-head { fill: var(--surface); stroke: var(--ink-soft); stroke-width: 3; }
+  .gait-joint { fill: var(--paper); stroke: var(--teal); stroke-width: 2; }
+  .gait-stance { fill: var(--teal-soft); }
+  .gait-curve { stroke: var(--teal); stroke-width: 2; fill: none; }
+  .gait-guide { stroke: var(--coral); stroke-width: 1; opacity: .55; }
+  .gait-marker { fill: var(--coral); }
+  .gait-evt { fill: var(--coral); }
+  .gait-axis text { fill: var(--ink-faint); }
+  .gait-controls { display: flex; align-items: center; gap: .7rem; margin-top: .55rem; }
+  #gaitPlay {
+    flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--surface); color: var(--teal);
+    font-size: .58rem; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: border-color .15s;
   }
-  @keyframes draw { to { stroke-dashoffset: 0; } }
-  @media (prefers-reduced-motion: reduce) { #gaitPath { animation: none; stroke-dashoffset: 0; } }
+  #gaitPlay:hover { border-color: var(--teal); }
+  #gaitPlay:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  #gaitScrub { flex: 1; accent-color: var(--teal); height: 3px; cursor: pointer; }
+  .gait-tag { font-family: var(--mono); font-size: .62rem; color: var(--ink-faint); white-space: nowrap; }
 
   /* ---------- sections ---------- */
   section { padding: 3.4rem 0; }
@@ -245,7 +263,7 @@
       <p class="subtitle">
         I'm an incoming <strong>M.S. student in Medicine</strong> at Yonsei University, building on dual B.S. degrees in
         <strong>Computer Science</strong> and <strong>Bio-Convergence</strong>. I study how intelligent wearable robots —
-        exoskeletons, smart walkers, sensor-driven biofeedback — can help people with stroke and cerebral palsy walk better.
+        exoskeletons, reinforcement-learning controllers, and sensor-driven biofeedback — can help people with stroke and cerebral palsy walk better.
       </p>
       <p class="hero-meta">BMRR Lab, Yonsei College of Medicine · previously EPIC Lab, Georgia Tech</p>
       <div class="hero-actions">
@@ -264,35 +282,44 @@
       </div>
     </div>
 
-    <figure class="gait-card" aria-label="Stylized hip flexion angle across one gait cycle">
-      <div class="fig-label"><span>hip_flexion.deg</span><span>1 gait cycle</span></div>
-      <svg viewBox="0 0 320 190" role="img">
-        <!-- stance / swing shading -->
-        <rect x="30" y="10" width="174" height="150" fill="var(--teal-soft)" opacity=".55"/>
-        <!-- gridlines -->
-        <g stroke="var(--line)" stroke-width="1">
-          <line x1="30" y1="10"  x2="30"  y2="160"/>
-          <line x1="30" y1="160" x2="310" y2="160"/>
-          <line x1="30" y1="85"  x2="310" y2="85" stroke-dasharray="3 4"/>
-        </g>
-        <!-- gait waveform: hip flexion approximation -->
-        <path id="gaitPath" d="M30,45 C60,60 85,110 112,132 C138,152 158,148 178,120 C198,92 216,55 244,42 C268,32 292,38 310,48"
-              fill="none" stroke="var(--teal)" stroke-width="2.6" stroke-linecap="round"/>
-        <!-- event markers -->
-        <circle cx="30" cy="45" r="3.4" fill="var(--coral)"/>
-        <circle cx="204" cy="76" r="3.4" fill="var(--coral)"/>
-        <!-- labels -->
-        <g font-family="ui-monospace, Menlo, monospace" font-size="8.5" fill="var(--ink-faint)">
-          <text x="34" y="30">IC</text>
-          <text x="208" y="66">TO</text>
-          <text x="95" y="176">stance</text>
-          <text x="240" y="176">swing</text>
-          <text x="26" y="176" text-anchor="start">0%</text>
-          <text x="310" y="176" text-anchor="end">100%</text>
-          <text x="26" y="88" text-anchor="end">0°</text>
+    <figure class="gait-card" aria-label="Interactive sagittal-plane gait simulation driven by joint kinematics">
+      <div class="fig-label"><span id="gaitReadout">hip_flexion = +25°</span><span id="gaitPhase">initial contact · 0%</span></div>
+      <svg id="gaitSvg" viewBox="0 0 320 214" role="img">
+        <line class="gait-ground" x1="18" y1="150" x2="302" y2="150"></line>
+        <!-- contralateral (far) limb + arm -->
+        <line id="thighR" class="gait-seg gait-far"></line>
+        <line id="shankR" class="gait-seg gait-far"></line>
+        <line id="footR"  class="gait-seg gait-far"></line>
+        <line id="armR"   class="gait-seg gait-far"></line>
+        <!-- torso + head -->
+        <line id="torso" class="gait-seg"></line>
+        <circle id="head" class="gait-head"></circle>
+        <!-- ipsilateral (near) limb + arm, accented -->
+        <line id="armL"   class="gait-seg"></line>
+        <line id="thighL" class="gait-seg accent"></line>
+        <line id="shankL" class="gait-seg accent"></line>
+        <line id="footL"  class="gait-seg accent"></line>
+        <circle id="hipJ"   class="gait-joint" r="2.6"></circle>
+        <circle id="kneeL"  class="gait-joint" r="2.6"></circle>
+        <circle id="ankleL" class="gait-joint" r="2.6"></circle>
+        <!-- hip-flexion curve strip (synced to the walker) -->
+        <rect id="stanceBox" class="gait-stance"></rect>
+        <path id="hipCurve" class="gait-curve"></path>
+        <line id="gaitGuide" class="gait-guide"></line>
+        <circle id="curveDot" class="gait-marker" r="3"></circle>
+        <g class="gait-axis" font-family="ui-monospace, Menlo, monospace" font-size="8">
+          <text id="icLbl">IC</text>
+          <text id="toLbl">TO</text>
+          <text x="18" y="212">0%</text>
+          <text x="302" y="212" text-anchor="end">100%</text>
         </g>
       </svg>
-      <figcaption class="caption">// gait: where code meets the clinic</figcaption>
+      <div class="gait-controls">
+        <button id="gaitPlay" type="button" aria-label="Play or pause the gait animation">❚❚</button>
+        <input id="gaitScrub" type="range" min="0" max="1000" value="0" aria-label="Scrub through the gait cycle">
+        <span class="gait-tag">hip&nbsp;flexion</span>
+      </div>
+      <figcaption class="caption">drag to scrub one gait cycle · sagittal-plane joint kinematics</figcaption>
     </figure>
   </div>
 
@@ -355,8 +382,8 @@
         <h3><a href="https://aidall.ai/" target="_blank" rel="noopener">AidALL · Korea Institute of Science and Technology</a></h3>
         <div class="role">Robotics &amp; AI Engineer Intern</div>
         <ul>
-          <li>Built an instrumented walker platform (IMUs, force sensors, mocap) toward smart assistive mobility systems</li>
-          <li>Deployed NVIDIA Isaac ROS visual SLAM + nvblox 3D reconstruction with Intel RealSense depth cameras</li>
+          <li>Deployed and debugged an NVIDIA Isaac ROS visual SLAM + nvblox pipeline on Intel RealSense depth cameras for real-time localization and 3D reconstruction</li>
+          <li>Built multimodal sensing and Kalman-filter sensor-fusion tooling (IMU, force, motion capture) for assistive mobility robotics research</li>
         </ul>
       </div>
       <div class="entry">
@@ -434,10 +461,10 @@
         <div class="tags"><span class="tag">Python</span><span class="tag">RTMPose</span><span class="tag">Vicon</span></div>
       </div>
       <div class="card">
-        <div class="when">2026 · KIST</div>
-        <h3><a href="https://drive.google.com/file/d/1HhqOo3fpH2ZzwsVvd4-rPHq1fJQsvITD/view?usp=sharing" target="_blank" rel="noopener">Instrumented Smart Walker ↗</a></h3>
-        <p>Multimodal walker fusing IMUs, force-resistive sensors, and motion capture; Kalman-filter orientation estimation and event-level directional symmetry metrics for human–walker coordination.</p>
-        <div class="tags"><span class="tag">MATLAB</span><span class="tag">Arduino</span><span class="tag">Sensor Fusion</span></div>
+        <div class="when">2023 · cNeuro Lab</div>
+        <h3><a href="https://github.com/prsper2001/Leaky-Integrate-and-Fire-Model-LIF-model-" target="_blank" rel="noopener">Neuronal Dynamics Simulation ↗</a></h3>
+        <p>MATLAB implementations of the leaky, exponential, and adaptive integrate-and-fire models plus Hodgkin–Huxley — simulating action-potential propagation and spiking behavior across neuron models.</p>
+        <div class="tags"><span class="tag">MATLAB</span><span class="tag">Neuroscience</span><span class="tag">Spiking Models</span></div>
       </div>
       <div class="card">
         <div class="when">2025 · EPIC Lab</div>
@@ -524,6 +551,92 @@
     if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
   }), { threshold: 0.08 });
   document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+
+<!-- interactive gait simulation -->
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const svg = $('gaitSvg'); if (!svg) return;
+  const NS = 'http://www.w3.org/2000/svg';
+  const TAU = Math.PI * 2, D = Math.PI / 180;
+
+  // --- geometry (SVG units) ---
+  const HIPX = 150, GROUND = 150, L1 = 34, L2 = 30, L3 = 12, TORSO = 40, ARM = 26, HEADR = 8;
+  const cx0 = 18, cx1 = 302, cyBase = 188, cyAmp = 15, STANCE = 0.6, HIPMAX = 25;
+
+  // --- normal-gait joint-angle models (degrees), phase p in [0,1) ---
+  const wrap = (p, c) => { let d = ((p - c) % 1 + 1) % 1; return d > 0.5 ? d - 1 : d; };
+  const bump = (p, c, w, a) => a * Math.exp(-Math.pow(wrap(p, c) / w, 2));
+  const hip   = p => 7 + 18 * Math.cos(TAU * p);                       // + = flexion (thigh forward)
+  const knee  = p => 5 + bump(p, 0.16, 0.10, 16) + bump(p, 0.72, 0.12, 58);
+  const ankle = p => -4 + 8 * Math.sin(TAU * (p + 0.06));
+  const hipY  = p => (GROUND - (L1 + L2)) - 3 * Math.sin(TAU * 2 * p); // subtle pelvic bob
+
+  // --- curve-strip mapping ---
+  const cxFor = p => cx0 + p * (cx1 - cx0);
+  const cyFor = v => cyBase - (v / HIPMAX) * cyAmp;
+
+  // build the static hip-flexion curve, stance shading, and event labels once
+  let d = '';
+  for (let i = 0; i <= 72; i++) { const p = i / 72; d += (i ? 'L' : 'M') + cxFor(p).toFixed(1) + ',' + cyFor(hip(p)).toFixed(1); }
+  $('hipCurve').setAttribute('d', d);
+  const sb = $('stanceBox');
+  sb.setAttribute('x', cx0); sb.setAttribute('y', (cyBase - cyAmp - 5).toFixed(1));
+  sb.setAttribute('width', (cxFor(STANCE) - cx0).toFixed(1)); sb.setAttribute('height', (2 * cyAmp + 10).toFixed(1));
+  sb.setAttribute('opacity', '.55');
+  const evt = (p) => { const c = document.createElementNS(NS, 'circle'); c.setAttribute('class', 'gait-evt'); c.setAttribute('r', '2.6'); c.setAttribute('cx', cxFor(p).toFixed(1)); c.setAttribute('cy', cyFor(hip(p)).toFixed(1)); svg.appendChild(c); };
+  evt(0); evt(STANCE);
+  $('icLbl').setAttribute('x', (cxFor(0) + 4).toFixed(1)); $('icLbl').setAttribute('y', (cyFor(hip(0)) - 5).toFixed(1));
+  $('toLbl').setAttribute('x', (cxFor(STANCE) + 4).toFixed(1)); $('toLbl').setAttribute('y', (cyFor(hip(STANCE)) - 5).toFixed(1));
+  const guide = $('gaitGuide'); guide.setAttribute('y1', (cyBase - cyAmp - 7).toFixed(1)); guide.setAttribute('y2', (cyBase + cyAmp + 7).toFixed(1));
+  $('head').setAttribute('r', HEADR);
+
+  const seg = (el, x1, y1, x2, y2) => { el.setAttribute('x1', x1.toFixed(1)); el.setAttribute('y1', y1.toFixed(1)); el.setAttribute('x2', x2.toFixed(1)); el.setAttribute('y2', y2.toFixed(1)); };
+  const put = (el, x, y) => { el.setAttribute('cx', x.toFixed(1)); el.setAttribute('cy', y.toFixed(1)); };
+
+  function limb(pl) {
+    const a = hip(pl) * D, k = knee(pl) * D, hy = hipY(pl);
+    const kx = HIPX + L1 * Math.sin(a),        ky = hy + L1 * Math.cos(a);
+    const s  = a - k;
+    const ax = kx + L2 * Math.sin(s),          ay = ky + L2 * Math.cos(s);
+    const f  = s + (90 - ankle(pl)) * D;
+    const tx = ax + L3 * Math.sin(f),          ty = ay + L3 * Math.cos(f);
+    return { hy, kx, ky, ax, ay, tx, ty };
+  }
+
+  function frame(p) {
+    p = ((p % 1) + 1) % 1;
+    const hy = hipY(p), shX = HIPX + 2 * Math.sin(TAU * p), shY = hy - TORSO;
+    const Lg = limb(p), Rg = limb((p + 0.5) % 1);
+    seg($('thighL'), HIPX, hy, Lg.kx, Lg.ky); seg($('shankL'), Lg.kx, Lg.ky, Lg.ax, Lg.ay); seg($('footL'), Lg.ax, Lg.ay, Lg.tx, Lg.ty);
+    seg($('thighR'), HIPX, hy, Rg.kx, Rg.ky); seg($('shankR'), Rg.kx, Rg.ky, Rg.ax, Rg.ay); seg($('footR'), Rg.ax, Rg.ay, Rg.tx, Rg.ty);
+    put($('hipJ'), HIPX, hy); put($('kneeL'), Lg.kx, Lg.ky); put($('ankleL'), Lg.ax, Lg.ay);
+    seg($('torso'), HIPX, hy, shX, shY); put($('head'), shX, shY - HEADR - 1);
+    const aL = (-14 * Math.cos(TAU * ((p + 0.5) % 1))) * D, aR = (-14 * Math.cos(TAU * p)) * D;
+    seg($('armL'), shX, shY + 4, shX + ARM * Math.sin(aL), shY + 4 + ARM * Math.cos(aL));
+    seg($('armR'), shX, shY + 4, shX + ARM * Math.sin(aR), shY + 4 + ARM * Math.cos(aR));
+    const mx = cxFor(p), my = cyFor(hip(p));
+    put($('curveDot'), mx, my); guide.setAttribute('x1', mx.toFixed(1)); guide.setAttribute('x2', mx.toFixed(1));
+    const hv = Math.round(hip(p));
+    $('gaitReadout').textContent = 'hip_flexion = ' + (hv >= 0 ? '+' : '') + hv + '°';
+    let ph = p < 0.02 ? 'initial contact' : (Math.abs(p - STANCE) < 0.02 ? 'toe-off' : (p < STANCE ? 'stance' : 'swing'));
+    $('gaitPhase').textContent = ph + ' · ' + Math.round(p * 100) + '%';
+    if (document.activeElement !== scrub) scrub.value = Math.round(p * 1000);
+  }
+
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const btn = $('gaitPlay'), scrub = $('gaitScrub');
+  let p = 0, playing = !reduce, last = null;
+  const PERIOD = 2400; // ms per gait cycle
+  btn.textContent = playing ? '❚❚' : '▶';
+
+  function loop(t) { if (last === null) last = t; const dt = t - last; last = t; if (playing) { p = (p + dt / PERIOD) % 1; frame(p); } requestAnimationFrame(loop); }
+  frame(0);
+  requestAnimationFrame(loop);
+  btn.addEventListener('click', () => { playing = !playing; btn.textContent = playing ? '❚❚' : '▶'; last = null; });
+  scrub.addEventListener('input', () => { playing = false; btn.textContent = '▶'; p = scrub.value / 1000; frame(p); });
+})();
 </script>
 
 </body>
