@@ -119,6 +119,20 @@
   .gait-far { opacity: .36; }
   .gait-head { fill: var(--surface); stroke: var(--ink-soft); stroke-width: 3; }
   .gait-joint { fill: var(--paper); stroke: var(--teal); stroke-width: 2; }
+  /* hip exoskeleton */
+  .gait-exo { stroke: var(--coral); stroke-width: 4; stroke-linecap: round; fill: none; }
+  .gait-exo-cuff { stroke: var(--coral); stroke-width: 3.4; stroke-linecap: round; }
+  .gait-exo-hub { fill: var(--coral); }
+  .gait-exo-ring {
+    fill: none; stroke: var(--coral); stroke-width: 1.3;
+    transform-box: fill-box; transform-origin: center;
+    animation: exoPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes exoPulse {
+    0%, 100% { opacity: .18; transform: scale(1); }
+    50%      { opacity: .5;  transform: scale(1.45); }
+  }
+  @media (prefers-reduced-motion: reduce) { .gait-exo-ring { animation: none; opacity: .3; } }
   .gait-stance { fill: var(--teal-soft); }
   .gait-curve { stroke: var(--teal); stroke-width: 2; fill: none; }
   .gait-guide { stroke: var(--coral); stroke-width: 1; opacity: .55; }
@@ -290,7 +304,7 @@
       </div>
     </div>
 
-    <figure class="gait-card" aria-label="Interactive sagittal-plane gait simulation driven by joint kinematics">
+    <figure class="gait-card" aria-label="Interactive sagittal-plane gait simulation of a person walking in a hip exoskeleton">
       <div class="fig-label"><span id="gaitReadout">hip_flexion = +25°</span><span id="gaitPhase">initial contact · 0%</span></div>
       <svg id="gaitSvg" viewBox="0 0 320 214" role="img">
         <line class="gait-ground" x1="18" y1="150" x2="302" y2="150"></line>
@@ -299,6 +313,9 @@
         <line id="shankR" class="gait-seg gait-far"></line>
         <line id="footR"  class="gait-seg gait-far"></line>
         <line id="armR"   class="gait-seg gait-far"></line>
+        <!-- hip-exo brace on the far limb -->
+        <line id="exoLinkR" class="gait-exo gait-far"></line>
+        <line id="exoCuffR" class="gait-exo-cuff gait-far"></line>
         <!-- torso + head -->
         <line id="torso" class="gait-seg"></line>
         <circle id="head" class="gait-head"></circle>
@@ -307,6 +324,12 @@
         <line id="thighL" class="gait-seg accent"></line>
         <line id="shankL" class="gait-seg accent"></line>
         <line id="footL"  class="gait-seg accent"></line>
+        <!-- hip-exo brace on the near limb -->
+        <line id="exoLinkL" class="gait-exo"></line>
+        <line id="exoCuffL" class="gait-exo-cuff"></line>
+        <!-- hip actuator module (motor) at the joint -->
+        <circle id="exoRing" class="gait-exo-ring"></circle>
+        <rect id="exoHub" class="gait-exo-hub" width="13" height="10" rx="3"></rect>
         <circle id="hipJ"   class="gait-joint" r="2.6"></circle>
         <circle id="kneeL"  class="gait-joint" r="2.6"></circle>
         <circle id="ankleL" class="gait-joint" r="2.6"></circle>
@@ -325,9 +348,9 @@
       <div class="gait-controls">
         <button id="gaitPlay" type="button" aria-label="Play or pause the gait animation">❚❚</button>
         <input id="gaitScrub" type="range" min="0" max="1000" value="0" aria-label="Scrub through the gait cycle">
-        <span class="gait-tag">hip&nbsp;flexion</span>
+        <span class="gait-tag">hip&nbsp;exo</span>
       </div>
-      <figcaption class="caption">drag to scrub one gait cycle · sagittal-plane joint kinematics</figcaption>
+      <figcaption class="caption">drag to scrub · a hip exoskeleton assisting one gait cycle</figcaption>
     </figure>
   </div>
 
@@ -612,6 +635,7 @@
   $('toLbl').setAttribute('x', (cxFor(STANCE) + 4).toFixed(1)); $('toLbl').setAttribute('y', (cyFor(hip(STANCE)) - 5).toFixed(1));
   const guide = $('gaitGuide'); guide.setAttribute('y1', (cyBase - cyAmp - 7).toFixed(1)); guide.setAttribute('y2', (cyBase + cyAmp + 7).toFixed(1));
   $('head').setAttribute('r', HEADR);
+  $('exoRing').setAttribute('r', 7.5);
 
   const seg = (el, x1, y1, x2, y2) => { el.setAttribute('x1', x1.toFixed(1)); el.setAttribute('y1', y1.toFixed(1)); el.setAttribute('x2', x2.toFixed(1)); el.setAttribute('y2', y2.toFixed(1)); };
   const put = (el, x, y) => { el.setAttribute('cx', x.toFixed(1)); el.setAttribute('cy', y.toFixed(1)); };
@@ -626,6 +650,17 @@
     return { hy, kx, ky, ax, ay, tx, ty };
   }
 
+  // hip-exo brace for one thigh: rigid link (hub -> thigh cuff) + thigh cuff strap
+  function exoBrace(link, cuff, pl, hy) {
+    const a = hip(pl) * D;
+    const dx = Math.sin(a), dy = Math.cos(a);   // hip -> knee (along femur)
+    const px = Math.cos(a), py = -Math.sin(a);  // anterior normal
+    const off = 3.6, frac = 0.58, ch = 5.5;
+    const mx = HIPX + dx * (frac * L1), my = hy + dy * (frac * L1);
+    seg(link, HIPX + px * off, hy + py * off, mx + px * off, my + py * off);
+    seg(cuff, mx - px * ch, my - py * ch, mx + px * ch, my + py * ch);
+  }
+
   function frame(p) {
     p = ((p % 1) + 1) % 1;
     const hy = hipY(p), shX = HIPX + 2 * Math.sin(TAU * p), shY = hy - TORSO;
@@ -634,6 +669,11 @@
     seg($('thighR'), HIPX, hy, Rg.kx, Rg.ky); seg($('shankR'), Rg.kx, Rg.ky, Rg.ax, Rg.ay); seg($('footR'), Rg.ax, Rg.ay, Rg.tx, Rg.ty);
     put($('hipJ'), HIPX, hy); put($('kneeL'), Lg.kx, Lg.ky); put($('ankleL'), Lg.ax, Lg.ay);
     seg($('torso'), HIPX, hy, shX, shY); put($('head'), shX, shY - HEADR - 1);
+    // hip exoskeleton: braces on both thighs + actuator hub/ring at the hip
+    exoBrace($('exoLinkR'), $('exoCuffR'), (p + 0.5) % 1, hy);
+    exoBrace($('exoLinkL'), $('exoCuffL'), p, hy);
+    $('exoHub').setAttribute('x', (HIPX - 6.5).toFixed(1)); $('exoHub').setAttribute('y', (hy - 5).toFixed(1));
+    put($('exoRing'), HIPX, hy);
     const aL = (-14 * Math.cos(TAU * ((p + 0.5) % 1))) * D, aR = (-14 * Math.cos(TAU * p)) * D;
     seg($('armL'), shX, shY + 4, shX + ARM * Math.sin(aL), shY + 4 + ARM * Math.cos(aL));
     seg($('armR'), shX, shY + 4, shX + ARM * Math.sin(aR), shY + 4 + ARM * Math.cos(aR));
