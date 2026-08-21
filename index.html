@@ -68,9 +68,17 @@
   .nav-name { font-family: var(--serif); font-weight: 700; font-size: 1.05rem; color: var(--ink); letter-spacing: .01em; }
   .nav-name .dot { color: var(--teal); }
   nav.links { display: flex; gap: 1.4rem; font-size: .88rem; }
-  nav.links a { color: var(--ink-soft); }
+  nav.links a { color: var(--ink-soft); position: relative; padding-bottom: 3px; transition: color .18s; }
   nav.links a:hover { color: var(--teal); text-decoration: none; }
+  nav.links a.active { color: var(--ink); }
+  nav.links a::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: var(--teal); border-radius: 2px; transform: scaleX(0); transform-origin: left;
+    transition: transform .22s ease;
+  }
+  nav.links a.active::after, nav.links a:hover::after { transform: scaleX(1); }
   @media (max-width: 720px) { nav.links { display: none; } }
+  @media (prefers-reduced-motion: reduce) { nav.links a::after { transition: none; } }
 
   /* ---------- hero ---------- */
   .hero { padding: 4.5rem 0 3.5rem; display: grid; grid-template-columns: 1.15fr .85fr; gap: 3rem; align-items: center; }
@@ -382,8 +390,8 @@
         <h3><a href="https://aidall.ai/" target="_blank" rel="noopener">AidALL · Korea Institute of Science and Technology</a></h3>
         <div class="role">Robotics &amp; AI Engineer Intern</div>
         <ul>
-          <li>Deployed and debugged an NVIDIA Isaac ROS visual SLAM + nvblox pipeline on Intel RealSense depth cameras for real-time localization and 3D reconstruction</li>
-          <li>Built multimodal sensing and Kalman-filter sensor-fusion tooling (IMU, force, motion capture) for assistive mobility robotics research</li>
+          <li>Built an instrumented walker platform (IMUs, force sensors, motion capture) toward smart assistive mobility systems</li>
+          <li>Deployed NVIDIA Isaac ROS visual SLAM + nvblox 3D reconstruction with Intel RealSense depth cameras</li>
         </ul>
       </div>
       <div class="entry">
@@ -461,10 +469,10 @@
         <div class="tags"><span class="tag">Python</span><span class="tag">RTMPose</span><span class="tag">Vicon</span></div>
       </div>
       <div class="card">
-        <div class="when">2023 · cNeuro Lab</div>
-        <h3><a href="https://github.com/prsper2001/Leaky-Integrate-and-Fire-Model-LIF-model-" target="_blank" rel="noopener">Neuronal Dynamics Simulation ↗</a></h3>
-        <p>MATLAB implementations of the leaky, exponential, and adaptive integrate-and-fire models plus Hodgkin–Huxley — simulating action-potential propagation and spiking behavior across neuron models.</p>
-        <div class="tags"><span class="tag">MATLAB</span><span class="tag">Neuroscience</span><span class="tag">Spiking Models</span></div>
+        <div class="when">2026 · KIST</div>
+        <h3><a href="https://drive.google.com/file/d/1HhqOo3fpH2ZzwsVvd4-rPHq1fJQsvITD/view?usp=sharing" target="_blank" rel="noopener">Instrumented Smart Walker ↗</a></h3>
+        <p>Multimodal walker fusing IMUs, force-resistive sensors, and motion capture; Kalman-filter orientation estimation and event-level directional symmetry metrics for human–walker coordination.</p>
+        <div class="tags"><span class="tag">MATLAB</span><span class="tag">Arduino</span><span class="tag">Sensor Fusion</span></div>
       </div>
       <div class="card">
         <div class="when">2025 · EPIC Lab</div>
@@ -489,6 +497,12 @@
         <h3>xv6 Kernel Extensions</h3>
         <p>A semester of kernel hacking: EEVDF scheduler, threads with mutexes, mmap with demand paging and copy-on-write, and doubly-indirect file system blocks.</p>
         <div class="tags"><span class="tag">C</span><span class="tag">xv6</span><span class="tag">Systems</span></div>
+      </div>
+      <div class="card">
+        <div class="when">2023 · cNeuro Lab</div>
+        <h3><a href="https://github.com/prsper2001/Leaky-Integrate-and-Fire-Model-LIF-model-" target="_blank" rel="noopener">Neuronal Dynamics Simulation ↗</a></h3>
+        <p>MATLAB implementations of the leaky, exponential, and adaptive integrate-and-fire models plus Hodgkin–Huxley — simulating action-potential propagation and spiking behavior across neuron models.</p>
+        <div class="tags"><span class="tag">MATLAB</span><span class="tag">Neuroscience</span><span class="tag">Spiking Models</span></div>
       </div>
     </div>
   </section>
@@ -551,6 +565,19 @@
     if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
   }), { threshold: 0.08 });
   document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // highlight the nav link for the section currently in view
+  const navLinks = Array.from(document.querySelectorAll('nav.links a'));
+  const linkFor = {};
+  navLinks.forEach(a => { linkFor[a.getAttribute('href').slice(1)] = a; });
+  const secObserver = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      navLinks.forEach(a => a.classList.remove('active'));
+      (linkFor[e.target.id] || {}).classList?.add('active');
+    });
+  }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
+  Object.keys(linkFor).forEach(id => { const el = document.getElementById(id); if (el) secObserver.observe(el); });
 </script>
 
 <!-- interactive gait simulation -->
