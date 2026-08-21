@@ -56,6 +56,10 @@
   }
   a { color: var(--teal); text-decoration: none; }
   a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  /* avoid single-word orphans / lone words wrapping to their own line */
+  h1, h2, h3 { text-wrap: balance; }
+  .subtitle, .about-lede, .hero-meta, .card p, .pillar p, .beyond .b p,
+  .contact-band p, .caption, .pub .pt, .pub .pa, .entry ul li, .pub-note { text-wrap: pretty; }
 
   .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
 
@@ -140,6 +144,14 @@
     50%      { opacity: .5;  transform: scale(1.5); }
   }
   @media (prefers-reduced-motion: reduce) { .gait-exo-ring { animation: none; opacity: .3; } }
+  /* clinical signal panel: hip angle + surface-EMG envelopes */
+  .panel-base  { stroke: var(--line); stroke-width: 1; opacity: .7; }
+  .panel-label { fill: var(--ink-faint); font-family: var(--mono); font-size: 7.5px; transition: fill .2s; }
+  .panel-label.hot { fill: var(--coral); font-weight: 600; }
+  .emg-raw  { fill: var(--teal); opacity: .2; stroke: none; }
+  .emg-line { fill: none; stroke: var(--teal); stroke-width: 1.4; }
+  .panel-guide { stroke: var(--coral); stroke-width: 1; opacity: .5; }
+  .cursor-dot { fill: var(--coral); }
   .gait-stance { fill: var(--teal-soft); }
   .gait-curve { stroke: var(--teal); stroke-width: 2; fill: none; }
   .gait-guide { stroke: var(--coral); stroke-width: 1; opacity: .55; }
@@ -311,9 +323,9 @@
       </div>
     </div>
 
-    <figure class="gait-card" aria-label="Interactive sagittal-plane gait simulation of a person walking in a hip exoskeleton">
+    <figure class="gait-card" aria-label="Interactive gait simulation: a person in a hip exoskeleton with synchronized hip angle and surface-EMG traces">
       <div class="fig-label"><span id="gaitReadout">hip_flexion = +25°</span><span id="gaitPhase">initial contact · 0%</span></div>
-      <svg id="gaitSvg" viewBox="0 0 320 214" role="img">
+      <svg id="gaitSvg" viewBox="0 0 320 200" role="img">
         <defs>
           <linearGradient id="exoMetal" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stop-color="var(--coral)"></stop>
@@ -330,7 +342,7 @@
             <circle class="exo-rivet" cx="4.1" cy="19.7" r="1.5"></circle>
           </g>
         </defs>
-        <line class="gait-ground" x1="18" y1="150" x2="302" y2="150"></line>
+        <line class="gait-ground" x1="14" y1="150" x2="126" y2="150"></line>
         <!-- contralateral (far) limb + arm -->
         <line id="thighR" class="gait-seg gait-far"></line>
         <line id="shankR" class="gait-seg gait-far"></line>
@@ -359,24 +371,15 @@
         <circle id="hipJ"   class="gait-joint" r="2.6"></circle>
         <circle id="kneeL"  class="gait-joint" r="2.6"></circle>
         <circle id="ankleL" class="gait-joint" r="2.6"></circle>
-        <!-- hip-flexion curve strip (synced to the walker) -->
-        <rect id="stanceBox" class="gait-stance"></rect>
-        <path id="hipCurve" class="gait-curve"></path>
-        <line id="gaitGuide" class="gait-guide"></line>
-        <circle id="curveDot" class="gait-marker" r="3"></circle>
-        <g class="gait-axis" font-family="ui-monospace, Menlo, monospace" font-size="8">
-          <text id="icLbl">IC</text>
-          <text id="toLbl">TO</text>
-          <text x="18" y="212">0%</text>
-          <text x="302" y="212" text-anchor="end">100%</text>
-        </g>
+        <!-- clinical signal panel (hip angle + EMG), built by JS -->
+        <g id="panel"></g>
       </svg>
       <div class="gait-controls">
         <button id="gaitPlay" type="button" aria-label="Play or pause the gait animation">❚❚</button>
         <input id="gaitScrub" type="range" min="0" max="1000" value="0" aria-label="Scrub through the gait cycle">
-        <span class="gait-tag">hip&nbsp;exo</span>
+        <span class="gait-tag">gait&nbsp;cycle</span>
       </div>
-      <figcaption class="caption">drag to scrub · a hip exoskeleton assisting one gait cycle</figcaption>
+      <figcaption class="caption">drag to scrub · hip angle + key-muscle EMG</figcaption>
     </figure>
   </div>
 
@@ -631,35 +634,69 @@
   const NS = 'http://www.w3.org/2000/svg';
   const TAU = Math.PI * 2, D = Math.PI / 180;
 
-  // --- geometry (SVG units) ---
-  const HIPX = 150, GROUND = 150, L1 = 34, L2 = 30, L3 = 12, TORSO = 40, ARM = 26, HEADR = 8;
-  const cx0 = 18, cx1 = 302, cyBase = 188, cyAmp = 15, STANCE = 0.6, HIPMAX = 25;
+  const mk = (tag, a) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); return e; };
 
-  // --- normal-gait joint-angle models (degrees), phase p in [0,1) ---
+  // --- figure geometry (left of the card) ---
+  const HIPX = 68, GROUND = 150, L1 = 34, L2 = 30, L3 = 12, TORSO = 40, ARM = 26, HEADR = 8;
+
+  // --- normal-gait joint-angle models (degrees) + surface-EMG envelopes (0..1) ---
   const wrap = (p, c) => { let d = ((p - c) % 1 + 1) % 1; return d > 0.5 ? d - 1 : d; };
   const bump = (p, c, w, a) => a * Math.exp(-Math.pow(wrap(p, c) / w, 2));
+  const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
   const hip   = p => 7 + 18 * Math.cos(TAU * p);                       // + = flexion (thigh forward)
   const knee  = p => 5 + bump(p, 0.16, 0.10, 16) + bump(p, 0.72, 0.12, 58);
   const ankle = p => -4 + 8 * Math.sin(TAU * (p + 0.06));
   const hipY  = p => (GROUND - (L1 + L2)) - 3 * Math.sin(TAU * 2 * p); // subtle pelvic bob
+  const gmax = p => clamp01(bump(p, 0.02, 0.075, 1) + bump(p, 0.93, 0.06, 0.45)); // hip extensor: loading burst
+  const rf   = p => clamp01(bump(p, 0.04, 0.05, 0.5) + bump(p, 0.61, 0.085, 1));   // hip flexor: pre-swing burst
+  const ham  = p => clamp01(bump(p, 0.98, 0.085, 1) + bump(p, 0.06, 0.06, 0.55));  // late-swing into loading
 
-  // --- curve-strip mapping ---
-  const cxFor = p => cx0 + p * (cx1 - cx0);
-  const cyFor = v => cyBase - (v / HIPMAX) * cyAmp;
+  // --- clinical signal panel (right of the card): hip angle + 3 EMG channels ---
+  const TX0 = 150, TX1 = 314, TOP = 15, ROWH = 44, STANCE = 0.6, HIPMIN = -12, HIPRANGE = 40;
+  const xFor = p => TX0 + p * (TX1 - TX0);
+  const rowBase = i => TOP + i * ROWH + 34, rowPeak = i => TOP + i * ROWH + 12;
+  const hash01 = i => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+  const channels = [
+    { label: 'hip angle',    kind: 'angle' },
+    { label: 'gluteus max.', kind: 'emg', env: gmax },
+    { label: 'rectus fem.',  kind: 'emg', env: rf },
+    { label: 'hamstring',    kind: 'emg', env: ham },
+  ];
+  const yFor = (ch, i, p) => ch.kind === 'angle'
+    ? rowBase(i) - ((hip(p) - HIPMIN) / HIPRANGE) * (rowBase(i) - rowPeak(i))
+    : rowBase(i) - clamp01(ch.env(p)) * (rowBase(i) - rowPeak(i));
 
-  // build the static hip-flexion curve, stance shading, and event labels once
-  let d = '';
-  for (let i = 0; i <= 72; i++) { const p = i / 72; d += (i ? 'L' : 'M') + cxFor(p).toFixed(1) + ',' + cyFor(hip(p)).toFixed(1); }
-  $('hipCurve').setAttribute('d', d);
-  const sb = $('stanceBox');
-  sb.setAttribute('x', cx0); sb.setAttribute('y', (cyBase - cyAmp - 5).toFixed(1));
-  sb.setAttribute('width', (cxFor(STANCE) - cx0).toFixed(1)); sb.setAttribute('height', (2 * cyAmp + 10).toFixed(1));
-  sb.setAttribute('opacity', '.55');
-  const evt = (p) => { const c = document.createElementNS(NS, 'circle'); c.setAttribute('class', 'gait-evt'); c.setAttribute('r', '2.6'); c.setAttribute('cx', cxFor(p).toFixed(1)); c.setAttribute('cy', cyFor(hip(p)).toFixed(1)); svg.appendChild(c); };
-  evt(0); evt(STANCE);
-  $('icLbl').setAttribute('x', (cxFor(0) + 4).toFixed(1)); $('icLbl').setAttribute('y', (cyFor(hip(0)) - 5).toFixed(1));
-  $('toLbl').setAttribute('x', (cxFor(STANCE) + 4).toFixed(1)); $('toLbl').setAttribute('y', (cyFor(hip(STANCE)) - 5).toFixed(1));
-  const guide = $('gaitGuide'); guide.setAttribute('y1', (cyBase - cyAmp - 7).toFixed(1)); guide.setAttribute('y2', (cyBase + cyAmp + 7).toFixed(1));
+  const panel = $('panel'), lastRow = channels.length - 1;
+  panel.appendChild(mk('rect', { class: 'gait-stance', x: TX0, y: TOP - 3,
+    width: (xFor(STANCE) - TX0).toFixed(1), height: (rowBase(lastRow) + 9 - TOP).toFixed(1), opacity: '.5' }));
+  const NRAW = 170;
+  channels.forEach((ch, i) => {
+    const base = rowBase(i), peak = rowPeak(i);
+    panel.appendChild(mk('line', { class: 'panel-base', x1: TX0, y1: base, x2: TX1, y2: base }));
+    ch.labelEl = mk('text', { class: 'panel-label', x: TX0 + 1, y: TOP + i * ROWH + 8 });
+    ch.labelEl.textContent = ch.label; panel.appendChild(ch.labelEl);
+    if (ch.kind === 'angle') {
+      let d = '';
+      for (let k = 0; k <= 90; k++) { const p = k / 90; d += (k ? 'L' : 'M') + xFor(p).toFixed(1) + ',' + yFor(ch, i, p).toFixed(1); }
+      panel.appendChild(mk('path', { class: 'gait-curve', d }));
+      [['IC', 0], ['TO', STANCE]].forEach(([t, pp]) => {
+        panel.appendChild(mk('circle', { class: 'gait-evt', r: 2.4, cx: xFor(pp).toFixed(1), cy: yFor(ch, i, pp).toFixed(1) }));
+        const tx = mk('text', { class: 'panel-label', x: (xFor(pp) + 3).toFixed(1), y: (yFor(ch, i, pp) - 4).toFixed(1) });
+        tx.textContent = t; panel.appendChild(tx);
+      });
+    } else {
+      let raw = 'M' + TX0 + ',' + base;                       // rectified-EMG burst (jagged fill)
+      for (let k = 0; k <= NRAW; k++) { const p = k / NRAW; raw += 'L' + xFor(p).toFixed(1) + ',' + (base - clamp01(ch.env(p)) * hash01(k) * (base - peak)).toFixed(1); }
+      panel.appendChild(mk('path', { class: 'emg-raw', d: raw + 'L' + TX1 + ',' + base + 'Z' }));
+      let env = '';                                           // smooth linear envelope
+      for (let k = 0; k <= 90; k++) { const p = k / 90; env += (k ? 'L' : 'M') + xFor(p).toFixed(1) + ',' + yFor(ch, i, p).toFixed(1); }
+      panel.appendChild(mk('path', { class: 'emg-line', d: env }));
+    }
+    ch.dot = mk('circle', { class: 'cursor-dot', r: 2.6, cx: TX0, cy: base }); panel.appendChild(ch.dot);
+  });
+  const guide = mk('line', { class: 'panel-guide', x1: TX0, y1: TOP - 3, x2: TX0, y2: rowBase(lastRow) + 6 }); panel.appendChild(guide);
+  const ax0 = mk('text', { class: 'panel-label', x: TX0, y: 197 }); ax0.textContent = '0%'; panel.appendChild(ax0);
+  const ax1 = mk('text', { class: 'panel-label', x: TX1, y: 197, 'text-anchor': 'end' }); ax1.textContent = '100%'; panel.appendChild(ax1);
   $('head').setAttribute('r', HEADR);
 
   const seg = (el, x1, y1, x2, y2) => { el.setAttribute('x1', x1.toFixed(1)); el.setAttribute('y1', y1.toFixed(1)); el.setAttribute('x2', x2.toFixed(1)); el.setAttribute('y2', y2.toFixed(1)); };
@@ -694,8 +731,14 @@
     const aL = (-14 * Math.cos(TAU * ((p + 0.5) % 1))) * D, aR = (-14 * Math.cos(TAU * p)) * D;
     seg($('armL'), shX, shY + 4, shX + ARM * Math.sin(aL), shY + 4 + ARM * Math.cos(aL));
     seg($('armR'), shX, shY + 4, shX + ARM * Math.sin(aR), shY + 4 + ARM * Math.cos(aR));
-    const mx = cxFor(p), my = cyFor(hip(p));
-    put($('curveDot'), mx, my); guide.setAttribute('x1', mx.toFixed(1)); guide.setAttribute('x2', mx.toFixed(1));
+    // signal panel: time cursor, per-channel dots, and active-muscle highlight
+    const cx = xFor(p); guide.setAttribute('x1', cx.toFixed(1)); guide.setAttribute('x2', cx.toFixed(1));
+    let hotI = -1, hotV = 0.28;
+    channels.forEach((ch, i) => {
+      put(ch.dot, cx, yFor(ch, i, p));
+      if (ch.kind === 'emg') { const v = clamp01(ch.env(p)); if (v > hotV) { hotV = v; hotI = i; } }
+    });
+    channels.forEach((ch, i) => ch.labelEl.classList.toggle('hot', i === hotI));
     const hv = Math.round(hip(p));
     $('gaitReadout').textContent = 'hip_flexion = ' + (hv >= 0 ? '+' : '') + hv + '°';
     let ph = p < 0.02 ? 'initial contact' : (Math.abs(p - STANCE) < 0.02 ? 'toe-off' : (p < STANCE ? 'stance' : 'swing'));
