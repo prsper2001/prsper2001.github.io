@@ -15,6 +15,7 @@
     --teal: #0e7c72;
     --teal-soft: #e3f0ee;
     --coral: #c05746;
+    --coral-deep: #9a4133;
     --line: #e4ded4;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
     --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
@@ -30,16 +31,17 @@
       --teal: #46b8aa;
       --teal-soft: #12312e;
       --coral: #e07a68;
+      --coral-deep: #b8563f;
       --line: #263140;
     }
   }
   :root[data-theme="dark"] {
     --paper: #0f151c; --surface: #161e27; --ink: #e8e6e1; --ink-soft: #a8b4bf;
-    --ink-faint: #64707c; --teal: #46b8aa; --teal-soft: #12312e; --coral: #e07a68; --line: #263140;
+    --ink-faint: #64707c; --teal: #46b8aa; --teal-soft: #12312e; --coral: #e07a68; --coral-deep: #b8563f; --line: #263140;
   }
   :root[data-theme="light"] {
     --paper: #faf8f4; --surface: #ffffff; --ink: #1b2733; --ink-soft: #4a5a68;
-    --ink-faint: #8595a3; --teal: #0e7c72; --teal-soft: #e3f0ee; --coral: #c05746; --line: #e4ded4;
+    --ink-faint: #8595a3; --teal: #0e7c72; --teal-soft: #e3f0ee; --coral: #c05746; --coral-deep: #9a4133; --line: #e4ded4;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -119,18 +121,23 @@
   .gait-far { opacity: .36; }
   .gait-head { fill: var(--surface); stroke: var(--ink-soft); stroke-width: 3; }
   .gait-joint { fill: var(--paper); stroke: var(--teal); stroke-width: 2; }
-  /* hip exoskeleton */
-  .gait-exo { stroke: var(--coral); stroke-width: 4; stroke-linecap: round; fill: none; }
-  .gait-exo-cuff { stroke: var(--coral); stroke-width: 3.4; stroke-linecap: round; }
-  .gait-exo-hub { fill: var(--coral); }
+  /* hip exoskeleton — mechanical detail */
+  .exo-strut    { stroke: var(--coral); stroke-width: 1.7; stroke-linecap: round; }
+  .exo-crossbar { stroke: var(--coral-deep); stroke-width: 1.1; stroke-linecap: round; }
+  .exo-cuff     { fill: none; stroke: var(--coral); stroke-width: 2.1; }
+  .exo-rivet    { fill: var(--paper); stroke: var(--coral); stroke-width: .9; }
+  .exo-housing  { fill: url(#exoMetal); stroke: var(--coral-deep); stroke-width: .8; }
+  .exo-vent     { stroke: var(--coral-deep); stroke-width: .8; stroke-linecap: round; opacity: .8; }
+  .exo-bolt     { fill: var(--coral-deep); }
+  .exo-axle     { fill: var(--paper); stroke: var(--coral); stroke-width: 1.4; }
   .gait-exo-ring {
-    fill: none; stroke: var(--coral); stroke-width: 1.3;
+    fill: none; stroke: var(--coral); stroke-width: 1.2;
     transform-box: fill-box; transform-origin: center;
     animation: exoPulse 1.8s ease-in-out infinite;
   }
   @keyframes exoPulse {
-    0%, 100% { opacity: .18; transform: scale(1); }
-    50%      { opacity: .5;  transform: scale(1.45); }
+    0%, 100% { opacity: .16; transform: scale(1); }
+    50%      { opacity: .5;  transform: scale(1.5); }
   }
   @media (prefers-reduced-motion: reduce) { .gait-exo-ring { animation: none; opacity: .3; } }
   .gait-stance { fill: var(--teal-soft); }
@@ -307,15 +314,29 @@
     <figure class="gait-card" aria-label="Interactive sagittal-plane gait simulation of a person walking in a hip exoskeleton">
       <div class="fig-label"><span id="gaitReadout">hip_flexion = +25°</span><span id="gaitPhase">initial contact · 0%</span></div>
       <svg id="gaitSvg" viewBox="0 0 320 214" role="img">
+        <defs>
+          <linearGradient id="exoMetal" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="var(--coral)"></stop>
+            <stop offset="1" stop-color="var(--coral-deep)"></stop>
+          </linearGradient>
+          <!-- reusable thigh brace, drawn in a local frame: +y runs down the femur, +x is anterior -->
+          <g id="exoBrace">
+            <line class="exo-strut"    x1="2.6" y1="3.4" x2="2.6" y2="19.7"></line>
+            <line class="exo-strut"    x1="5.6" y1="3.4" x2="5.6" y2="19.7"></line>
+            <line class="exo-crossbar" x1="2.6" y1="8"   x2="5.6" y2="8"></line>
+            <line class="exo-crossbar" x1="2.6" y1="15"  x2="5.6" y2="15"></line>
+            <rect class="exo-cuff" x="-4.6" y="17.6" width="13.4" height="4.2" rx="2.1"></rect>
+            <circle class="exo-rivet" cx="4.1" cy="3.4"  r="1.5"></circle>
+            <circle class="exo-rivet" cx="4.1" cy="19.7" r="1.5"></circle>
+          </g>
+        </defs>
         <line class="gait-ground" x1="18" y1="150" x2="302" y2="150"></line>
         <!-- contralateral (far) limb + arm -->
         <line id="thighR" class="gait-seg gait-far"></line>
         <line id="shankR" class="gait-seg gait-far"></line>
         <line id="footR"  class="gait-seg gait-far"></line>
         <line id="armR"   class="gait-seg gait-far"></line>
-        <!-- hip-exo brace on the far limb -->
-        <line id="exoLinkR" class="gait-exo gait-far"></line>
-        <line id="exoCuffR" class="gait-exo-cuff gait-far"></line>
+        <use id="exoUseR" href="#exoBrace" class="gait-far"></use>
         <!-- torso + head -->
         <line id="torso" class="gait-seg"></line>
         <circle id="head" class="gait-head"></circle>
@@ -324,12 +345,17 @@
         <line id="thighL" class="gait-seg accent"></line>
         <line id="shankL" class="gait-seg accent"></line>
         <line id="footL"  class="gait-seg accent"></line>
-        <!-- hip-exo brace on the near limb -->
-        <line id="exoLinkL" class="gait-exo"></line>
-        <line id="exoCuffL" class="gait-exo-cuff"></line>
-        <!-- hip actuator module (motor) at the joint -->
-        <circle id="exoRing" class="gait-exo-ring"></circle>
-        <rect id="exoHub" class="gait-exo-hub" width="13" height="10" rx="3"></rect>
+        <use id="exoUseL" href="#exoBrace"></use>
+        <!-- hip actuator module (motor housing + axle) at the joint -->
+        <g id="exoHub">
+          <circle id="exoRing" class="gait-exo-ring" r="8"></circle>
+          <rect class="exo-housing" x="-6.5" y="-6.5" width="15.5" height="13" rx="2.6"></rect>
+          <line class="exo-vent" x1="4.5" y1="-3.4" x2="4.5" y2="3.4"></line>
+          <line class="exo-vent" x1="6.4" y1="-3.4" x2="6.4" y2="3.4"></line>
+          <circle class="exo-bolt" cx="-4" cy="-4" r="1"></circle>
+          <circle class="exo-bolt" cx="-4" cy="4"  r="1"></circle>
+          <circle class="exo-axle" cx="0" cy="0" r="2.5"></circle>
+        </g>
         <circle id="hipJ"   class="gait-joint" r="2.6"></circle>
         <circle id="kneeL"  class="gait-joint" r="2.6"></circle>
         <circle id="ankleL" class="gait-joint" r="2.6"></circle>
@@ -378,7 +404,7 @@
         <div class="tags"><span class="tag">OpenSim</span><span class="tag">Vicon</span><span class="tag">Biomechanics</span><span class="tag">SNN</span></div>
       </div>
       <div class="pillar" style="--pc: var(--ink-soft)">
-        <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="1.8"/><path d="M13 6v5l-3.5 4.5V21"/><path d="M13 11l3 3 2.5 6"/><path d="M9 8.5 13 7"/><path d="M6 21v-4l3.5-1"/></svg></div>
+        <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5 11.5 13 9.5 20.5" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 20.5 14 21" stroke="currentColor" stroke-width="1.8"/><path d="M12.6 6.2 14.7 12.4" stroke="var(--coral)" stroke-width="1.7"/><path d="M10.3 10 14 11.2" stroke="var(--coral)" stroke-width="1.7"/><circle cx="9.4" cy="5" r="2.3" fill="var(--coral)"/></svg></div>
         <h3>Rehabilitation Medicine</h3>
         <p>Robot-assisted gait therapy, clinical outcome measures, and patient-facing research — beginning an M.S. in Medicine under Prof. Dongwook Rha at Yonsei College of Medicine (Sep 2026).</p>
         <div class="tags"><span class="tag">Exoskeletons</span><span class="tag">Stroke</span><span class="tag">Cerebral Palsy</span><span class="tag">CIMT</span></div>
@@ -635,7 +661,6 @@
   $('toLbl').setAttribute('x', (cxFor(STANCE) + 4).toFixed(1)); $('toLbl').setAttribute('y', (cyFor(hip(STANCE)) - 5).toFixed(1));
   const guide = $('gaitGuide'); guide.setAttribute('y1', (cyBase - cyAmp - 7).toFixed(1)); guide.setAttribute('y2', (cyBase + cyAmp + 7).toFixed(1));
   $('head').setAttribute('r', HEADR);
-  $('exoRing').setAttribute('r', 7.5);
 
   const seg = (el, x1, y1, x2, y2) => { el.setAttribute('x1', x1.toFixed(1)); el.setAttribute('y1', y1.toFixed(1)); el.setAttribute('x2', x2.toFixed(1)); el.setAttribute('y2', y2.toFixed(1)); };
   const put = (el, x, y) => { el.setAttribute('cx', x.toFixed(1)); el.setAttribute('cy', y.toFixed(1)); };
@@ -650,16 +675,9 @@
     return { hy, kx, ky, ax, ay, tx, ty };
   }
 
-  // hip-exo brace for one thigh: rigid link (hub -> thigh cuff) + thigh cuff strap
-  function exoBrace(link, cuff, pl, hy) {
-    const a = hip(pl) * D;
-    const dx = Math.sin(a), dy = Math.cos(a);   // hip -> knee (along femur)
-    const px = Math.cos(a), py = -Math.sin(a);  // anterior normal
-    const off = 3.6, frac = 0.58, ch = 5.5;
-    const mx = HIPX + dx * (frac * L1), my = hy + dy * (frac * L1);
-    seg(link, HIPX + px * off, hy + py * off, mx + px * off, my + py * off);
-    seg(cuff, mx - px * ch, my - py * ch, mx + px * ch, my + py * ch);
-  }
+  // place a reusable exo brace on a thigh: local frame rides the femur (rotate = -hip angle)
+  const brace = (el, pl, hy) => el.setAttribute('transform',
+    'translate(' + HIPX + ',' + hy.toFixed(1) + ') rotate(' + (-hip(pl)).toFixed(1) + ')');
 
   function frame(p) {
     p = ((p % 1) + 1) % 1;
@@ -670,10 +688,9 @@
     put($('hipJ'), HIPX, hy); put($('kneeL'), Lg.kx, Lg.ky); put($('ankleL'), Lg.ax, Lg.ay);
     seg($('torso'), HIPX, hy, shX, shY); put($('head'), shX, shY - HEADR - 1);
     // hip exoskeleton: braces on both thighs + actuator hub/ring at the hip
-    exoBrace($('exoLinkR'), $('exoCuffR'), (p + 0.5) % 1, hy);
-    exoBrace($('exoLinkL'), $('exoCuffL'), p, hy);
-    $('exoHub').setAttribute('x', (HIPX - 6.5).toFixed(1)); $('exoHub').setAttribute('y', (hy - 5).toFixed(1));
-    put($('exoRing'), HIPX, hy);
+    brace($('exoUseR'), (p + 0.5) % 1, hy);
+    brace($('exoUseL'), p, hy);
+    $('exoHub').setAttribute('transform', 'translate(' + HIPX + ',' + hy.toFixed(1) + ')');
     const aL = (-14 * Math.cos(TAU * ((p + 0.5) % 1))) * D, aR = (-14 * Math.cos(TAU * p)) * D;
     seg($('armL'), shX, shY + 4, shX + ARM * Math.sin(aL), shY + 4 + ARM * Math.cos(aL));
     seg($('armR'), shX, shY + 4, shX + ARM * Math.sin(aR), shY + 4 + ARM * Math.cos(aR));
