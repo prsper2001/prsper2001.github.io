@@ -153,31 +153,6 @@
   .panel-div { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; opacity: .8; }
   .panel-guide { stroke: var(--coral); stroke-width: 1; opacity: .5; }
   .cursor-dot { fill: var(--coral); }
-
-  /* RL training-curve feature */
-  .feature { padding: 3.4rem 0; border-top: 1px solid var(--line); }
-  .feature-grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: 2.6rem; align-items: center; }
-  @media (max-width: 860px) { .feature-grid { grid-template-columns: 1fr; gap: 1.8rem; } }
-  .feature-eyebrow { font-family: var(--mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--coral); }
-  .feature-copy h2 { margin: .6rem 0 .8rem; }
-  .feature-copy p { color: var(--ink-soft); font-size: 1.02rem; }
-  .feature-copy p strong { color: var(--ink); }
-  .feature-tags { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: .4rem; }
-  .rl-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem 1.2rem .9rem; box-shadow: 0 8px 30px rgba(15, 40, 50, .06); }
-  .rl-card .fig-label { font-family: var(--mono); font-size: .7rem; color: var(--ink-faint); display: flex; justify-content: space-between; margin-bottom: .4rem; }
-  .rl-card svg { width: 100%; height: auto; display: block; }
-  .rl-grid line { stroke: var(--line); stroke-width: 1; opacity: .55; }
-  .rl-grid text, #rlAxis text { fill: var(--ink-faint); font-family: var(--mono); font-size: 7.5px; }
-  .rl-curve { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-  .rl-cursor { stroke: var(--ink-faint); stroke-width: 1; opacity: .4; stroke-dasharray: 2 3; }
-  .rl-legend { display: flex; gap: 1.1rem; margin: .55rem 0 .1rem; flex-wrap: wrap; }
-  .rl-leg { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--mono); font-size: .7rem; color: var(--ink-soft); cursor: pointer; user-select: none; }
-  .rl-leg .chip { width: 13px; height: 3px; border-radius: 2px; }
-  .rl-leg.off { opacity: .35; text-decoration: line-through; }
-  #rlPlay { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--teal); font-size: .58rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color .15s; }
-  #rlPlay:hover { border-color: var(--teal); }
-  #rlPlay:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
-  #rlScrub { flex: 1; accent-color: var(--teal); height: 3px; cursor: pointer; }
   .gait-stance { fill: var(--teal-soft); }
   .gait-curve { stroke: var(--teal); stroke-width: 2; fill: none; }
   .gait-guide { stroke: var(--coral); stroke-width: 1; opacity: .55; }
@@ -438,35 +413,6 @@
         <p>Robot-assisted gait therapy, clinical outcome measures, and patient-facing research — beginning an M.S. in Medicine under Prof. Dongwook Rha at Yonsei College of Medicine (Sep 2026).</p>
         <div class="tags"><span class="tag">Exoskeletons</span><span class="tag">Stroke</span><span class="tag">Cerebral Palsy</span><span class="tag">CIMT</span></div>
       </div>
-    </div>
-  </section>
-
-  <!-- ================= RL FEATURE ================= -->
-  <section class="feature reveal">
-    <div class="feature-grid">
-      <div class="feature-copy">
-        <span class="feature-eyebrow">how the controllers learn</span>
-        <h2>Reinforcement learning that finds a better policy</h2>
-        <p>At Yonsei's RLLAB (with AWS), my capstone pushes past vanilla PPO — large-batch methods like <strong>EPO</strong> and <strong>SAPG</strong> reach higher return, faster, on humanoid control. Press play to watch them train, and click a method to toggle it.</p>
-        <div class="feature-tags"><span class="tag">PPO</span><span class="tag">EPO</span><span class="tag">SAPG</span><span class="tag">Humanoid Control</span><span class="tag">Large-Batch RL</span></div>
-      </div>
-      <figure class="rl-card" aria-label="Interactive reinforcement-learning training curves comparing PPO, EPO and SAPG return over environment steps">
-        <div class="fig-label"><span id="rlReadout">return 0.00</span><span id="rlSteps">0M steps</span></div>
-        <svg id="rlSvg" viewBox="0 0 320 190" role="img">
-          <defs><clipPath id="rlClip"><rect id="rlClipRect" x="40" y="14" width="0" height="150"></rect></clipPath></defs>
-          <g id="rlGrid"></g>
-          <g id="rlCurves" clip-path="url(#rlClip)"></g>
-          <line id="rlCursor" class="rl-cursor"></line>
-          <g id="rlAxis"></g>
-        </svg>
-        <div class="rl-legend" id="rlLegend"></div>
-        <div class="gait-controls">
-          <button id="rlPlay" type="button" aria-label="Play, pause, or replay training">▶</button>
-          <input id="rlScrub" type="range" min="0" max="1000" value="0" aria-label="Scrub training progress">
-          <span class="gait-tag">training</span>
-        </div>
-        <figcaption class="caption">normalized return vs. environment steps · click legend to toggle</figcaption>
-      </figure>
     </div>
   </section>
 
@@ -809,87 +755,6 @@
   requestAnimationFrame(loop);
   btn.addEventListener('click', () => { playing = !playing; btn.textContent = playing ? '❚❚' : '▶'; last = null; });
   scrub.addEventListener('input', () => { playing = false; btn.textContent = '▶'; p = scrub.value / 1000; frame(p); });
-})();
-</script>
-
-<!-- interactive RL training curves -->
-<script>
-(function () {
-  const $ = id => document.getElementById(id);
-  const svg = $('rlSvg'); if (!svg) return;
-  const NS = 'http://www.w3.org/2000/svg';
-  const mk = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
-
-  const X0 = 40, X1 = 306, Y0 = 14, Y1 = 164, PLOTW = X1 - X0, PLOTH = Y1 - Y0;
-  const px = x => X0 + x * PLOTW, py = r => Y1 - r * PLOTH;
-  const hash = i => { const s = Math.sin(i * 91.7 + 13.3) * 43758.5453; return s - Math.floor(s); };
-
-  // training-return models: return vs. normalized training progress (0..1)
-  const methods = [
-    { key: 'ppo',  name: 'PPO',  color: 'var(--ink-faint)', plateau: 0.70, tau: 0.30 },
-    { key: 'epo',  name: 'EPO',  color: 'var(--coral)',     plateau: 0.85, tau: 0.19 },
-    { key: 'sapg', name: 'SAPG', color: 'var(--teal)',      plateau: 0.93, tau: 0.13 },
-  ];
-  const ret = (m, x) => {
-    const base = m.plateau * (1 - Math.exp(-x / m.tau));
-    const noise = x > 0.015 ? (hash(Math.round(x * 160) + m.key.length * 7) - 0.5) * 0.03 : 0;
-    return Math.max(0, Math.min(1, base + noise));
-  };
-
-  const grid = $('rlGrid'), axis = $('rlAxis');
-  [0, 0.25, 0.5, 0.75, 1].forEach(r => {
-    grid.appendChild(mk('line', { x1: X0, y1: py(r), x2: X1, y2: py(r) }));
-    const t = mk('text', { x: X0 - 4, y: (py(r) + 2.5).toFixed(1), 'text-anchor': 'end' }); t.textContent = r.toFixed(2); grid.appendChild(t);
-  });
-  const xl = mk('text', { x: (X0 + PLOTW / 2).toFixed(1), y: 182, 'text-anchor': 'middle' }); xl.textContent = 'environment steps →'; axis.appendChild(xl);
-
-  const curves = $('rlCurves');
-  methods.forEach(m => {
-    let d = '';
-    for (let k = 0; k <= 120; k++) { const x = k / 120; d += (k ? 'L' : 'M') + px(x).toFixed(1) + ',' + py(ret(m, x)).toFixed(1); }
-    m.path = mk('path', { class: 'rl-curve', d, stroke: m.color }); curves.appendChild(m.path); m.visible = true;
-  });
-
-  const legend = $('rlLegend');
-  methods.forEach(m => {
-    const el = document.createElement('span'); el.className = 'rl-leg';
-    el.innerHTML = '<span class="chip" style="background:' + m.color + '"></span>' + m.name;
-    el.addEventListener('click', () => { m.visible = !m.visible; m.path.style.display = m.visible ? '' : 'none'; el.classList.toggle('off', !m.visible); render(a); });
-    legend.appendChild(el);
-  });
-
-  const clip = $('rlClipRect'), cursor = $('rlCursor');
-  cursor.setAttribute('y1', Y0); cursor.setAttribute('y2', Y1);
-
-  function render(prog) {
-    clip.setAttribute('width', (prog * PLOTW).toFixed(1));
-    const cx = px(prog); cursor.setAttribute('x1', cx.toFixed(1)); cursor.setAttribute('x2', cx.toFixed(1));
-    const best = methods.filter(m => m.visible).reduce((b, m) => Math.max(b, ret(m, prog)), 0);
-    $('rlReadout').textContent = 'return ' + best.toFixed(2);
-    $('rlSteps').textContent = Math.round(prog * 200) + 'M steps';
-    if (document.activeElement !== scrub) scrub.value = Math.round(prog * 1000);
-  }
-
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const btn = $('rlPlay'), scrub = $('rlScrub');
-  let a = reduce ? 1 : 0, playing = !reduce, last = null;
-  const PERIOD = 3600;
-  btn.textContent = playing ? '❚❚' : (a >= 1 ? '↻' : '▶');
-  render(a);
-
-  function loop(t) {
-    if (last === null) last = t; const dt = t - last; last = t;
-    if (playing) { a += dt / PERIOD; if (a >= 1) { a = 1; playing = false; btn.textContent = '↻'; } render(a); }
-    requestAnimationFrame(loop);
-  }
-  requestAnimationFrame(loop);
-  btn.addEventListener('click', () => {
-    if (a >= 1) a = 0;                 // finished -> replay
-    playing = !playing;
-    btn.textContent = playing ? '❚❚' : (a >= 1 ? '↻' : '▶');
-    last = null;
-  });
-  scrub.addEventListener('input', () => { playing = false; a = scrub.value / 1000; btn.textContent = a >= 1 ? '↻' : '▶'; render(a); });
 })();
 </script>
 
