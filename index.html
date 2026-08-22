@@ -655,12 +655,19 @@
   const TX0 = 150, TX1 = 314, TOP = 15, ROWH = 44, STANCE = 0.6, HIPMIN = -12, HIPRANGE = 40;
   const xFor = p => TX0 + p * (TX1 - TX0);
   const rowBase = i => TOP + i * ROWH + 37, rowPeak = i => TOP + i * ROWH + 18;
-  const hash01 = i => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+  const rnd = (n, seed) => { const s = Math.sin(n * 12.9898 + seed * 78.233) * 43758.5453; return (s - Math.floor(s)) * 2 - 1; };
+  // each muscle gets a distinct noise texture (seed + hold-step + character)
+  const noise = (ch, k) => {
+    let v = rnd(Math.floor(k / ch.step), ch.seed);
+    if (ch.tone === 'buzz')        v = v * 0.6 + rnd(k, ch.seed + 7) * 0.4;      // fine dense grain
+    else if (ch.tone === 'tremor') v = v * 0.78 + Math.sin(k * 0.7 + ch.seed) * 0.22; // wavering
+    return Math.max(-1, Math.min(1, v));
+  };
   const channels = [
     { label: 'hip angle',    kind: 'angle' },
-    { label: 'gluteus max.', kind: 'emg', env: gmax },
-    { label: 'rectus fem.',  kind: 'emg', env: rf },
-    { label: 'hamstring',    kind: 'emg', env: ham },
+    { label: 'gluteus max.', kind: 'emg', env: gmax, seed: 3,  step: 3, tone: 'coarse' },
+    { label: 'rectus fem.',  kind: 'emg', env: rf,   seed: 11, step: 1, tone: 'buzz' },
+    { label: 'hamstring',    kind: 'emg', env: ham,  seed: 23, step: 2, tone: 'tremor' },
   ];
   const yFor = (ch, i, p) => ch.kind === 'angle'
     ? rowBase(i) - ((hip(p) - HIPMIN) / HIPRANGE) * (rowBase(i) - rowPeak(i))
@@ -681,17 +688,20 @@
       for (let k = 0; k <= 90; k++) { const p = k / 90; d += (k ? 'L' : 'M') + xFor(p).toFixed(1) + ',' + yFor(ch, i, p).toFixed(1); }
       panel.appendChild(mk('path', { class: 'gait-curve', d }));
     } else {
-      // raw jittering sEMG: bipolar noise around the row midline, amplitude = muscle activation (no smoothing/interpolation)
+      // raw jittering sEMG: bipolar noise around the row midline, amplitude = muscle activation (no smoothing)
       const mid = (base + peak) / 2, amp = (base - peak) / 2;
+      ch.samplesY = new Array(NJIT + 1);
       let jit = '';
       for (let k = 0; k <= NJIT; k++) {
         const p = k / NJIT;
-        const a2 = clamp01(0.05 + ch.env(p));                 // small baseline noise + burst
-        jit += (k ? 'L' : 'M') + xFor(p).toFixed(1) + ',' + (mid - (hash01(k) * 2 - 1) * a2 * amp).toFixed(1);
+        const a2 = clamp01(0.14 + ch.env(p));                 // baseline noise floor + burst
+        const y = mid - noise(ch, k) * a2 * amp;
+        ch.samplesY[k] = y;
+        jit += (k ? 'L' : 'M') + xFor(p).toFixed(1) + ',' + y.toFixed(1);
       }
       panel.appendChild(mk('path', { class: 'emg-jitter', d: jit }));
     }
-    if (ch.kind === 'angle') { ch.dot = mk('circle', { class: 'cursor-dot', r: 2.6, cx: TX0, cy: base }); panel.appendChild(ch.dot); }
+    ch.dot = mk('circle', { class: 'cursor-dot', r: 2.6, cx: TX0, cy: base }); panel.appendChild(ch.dot);
   });
   const guide = mk('line', { class: 'panel-guide', x1: TX0, y1: TOP - 3, x2: TX0, y2: rowBase(lastRow) + 6 }); panel.appendChild(guide);
   const axL = mk('text', { class: 'panel-label', x: TX0, y: 197 }); axL.textContent = 'IC · 0%'; panel.appendChild(axL);
@@ -735,7 +745,10 @@
     const cx = xFor(p); guide.setAttribute('x1', cx.toFixed(1)); guide.setAttribute('x2', cx.toFixed(1));
     let hotI = -1, hotV = 0.28;
     channels.forEach((ch, i) => {
-      if (ch.dot) put(ch.dot, cx, yFor(ch, i, p));
+      let y;
+      if (ch.kind === 'angle') y = yFor(ch, i, p);
+      else { const u = p * NJIT, k0 = Math.floor(u), k1 = Math.min(k0 + 1, NJIT); y = ch.samplesY[k0] + (ch.samplesY[k1] - ch.samplesY[k0]) * (u - k0); }
+      put(ch.dot, cx, y);
       if (ch.kind === 'emg') { const v = clamp01(ch.env(p)); if (v > hotV) { hotV = v; hotI = i; } }
     });
     channels.forEach((ch, i) => ch.labelEl.classList.toggle('hot', i === hotI));
