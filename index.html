@@ -148,8 +148,7 @@
   .panel-base  { stroke: var(--line); stroke-width: 1; opacity: .7; }
   .panel-label { fill: var(--ink-faint); font-family: var(--mono); font-size: 7.5px; transition: fill .2s; }
   .panel-label.hot { fill: var(--coral); font-weight: 600; }
-  .emg-raw  { fill: var(--teal); opacity: .2; stroke: none; }
-  .emg-line { fill: none; stroke: var(--teal); stroke-width: 1.4; }
+  .emg-jitter { fill: none; stroke: var(--teal); stroke-width: 1; stroke-linejoin: round; stroke-linecap: round; opacity: .9; }
   .panel-div { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; opacity: .8; }
   .panel-guide { stroke: var(--coral); stroke-width: 1; opacity: .5; }
   .cursor-dot { fill: var(--coral); }
@@ -671,7 +670,7 @@
   panel.appendChild(mk('rect', { class: 'gait-stance', x: TX0, y: TOP - 3,
     width: (xFor(STANCE) - TX0).toFixed(1), height: (rowBase(lastRow) + 9 - TOP).toFixed(1), opacity: '.5' }));
   panel.appendChild(mk('line', { class: 'panel-div', x1: xFor(STANCE).toFixed(1), y1: TOP - 3, x2: xFor(STANCE).toFixed(1), y2: (rowBase(lastRow) + 6).toFixed(1) }));
-  const NRAW = 170;
+  const NJIT = 260;
   channels.forEach((ch, i) => {
     const base = rowBase(i), peak = rowPeak(i);
     panel.appendChild(mk('line', { class: 'panel-base', x1: TX0, y1: base, x2: TX1, y2: base }));
@@ -682,14 +681,17 @@
       for (let k = 0; k <= 90; k++) { const p = k / 90; d += (k ? 'L' : 'M') + xFor(p).toFixed(1) + ',' + yFor(ch, i, p).toFixed(1); }
       panel.appendChild(mk('path', { class: 'gait-curve', d }));
     } else {
-      let raw = 'M' + TX0 + ',' + base;                       // rectified-EMG burst (jagged fill)
-      for (let k = 0; k <= NRAW; k++) { const p = k / NRAW; raw += 'L' + xFor(p).toFixed(1) + ',' + (base - clamp01(ch.env(p)) * hash01(k) * (base - peak)).toFixed(1); }
-      panel.appendChild(mk('path', { class: 'emg-raw', d: raw + 'L' + TX1 + ',' + base + 'Z' }));
-      let env = '';                                           // smooth linear envelope
-      for (let k = 0; k <= 90; k++) { const p = k / 90; env += (k ? 'L' : 'M') + xFor(p).toFixed(1) + ',' + yFor(ch, i, p).toFixed(1); }
-      panel.appendChild(mk('path', { class: 'emg-line', d: env }));
+      // raw jittering sEMG: bipolar noise around the row midline, amplitude = muscle activation (no smoothing/interpolation)
+      const mid = (base + peak) / 2, amp = (base - peak) / 2;
+      let jit = '';
+      for (let k = 0; k <= NJIT; k++) {
+        const p = k / NJIT;
+        const a2 = clamp01(0.05 + ch.env(p));                 // small baseline noise + burst
+        jit += (k ? 'L' : 'M') + xFor(p).toFixed(1) + ',' + (mid - (hash01(k) * 2 - 1) * a2 * amp).toFixed(1);
+      }
+      panel.appendChild(mk('path', { class: 'emg-jitter', d: jit }));
     }
-    ch.dot = mk('circle', { class: 'cursor-dot', r: 2.6, cx: TX0, cy: base }); panel.appendChild(ch.dot);
+    if (ch.kind === 'angle') { ch.dot = mk('circle', { class: 'cursor-dot', r: 2.6, cx: TX0, cy: base }); panel.appendChild(ch.dot); }
   });
   const guide = mk('line', { class: 'panel-guide', x1: TX0, y1: TOP - 3, x2: TX0, y2: rowBase(lastRow) + 6 }); panel.appendChild(guide);
   const axL = mk('text', { class: 'panel-label', x: TX0, y: 197 }); axL.textContent = 'IC · 0%'; panel.appendChild(axL);
@@ -733,7 +735,7 @@
     const cx = xFor(p); guide.setAttribute('x1', cx.toFixed(1)); guide.setAttribute('x2', cx.toFixed(1));
     let hotI = -1, hotV = 0.28;
     channels.forEach((ch, i) => {
-      put(ch.dot, cx, yFor(ch, i, p));
+      if (ch.dot) put(ch.dot, cx, yFor(ch, i, p));
       if (ch.kind === 'emg') { const v = clamp01(ch.env(p)); if (v > hotV) { hotV = v; hotI = i; } }
     });
     channels.forEach((ch, i) => ch.labelEl.classList.toggle('hot', i === hotI));
